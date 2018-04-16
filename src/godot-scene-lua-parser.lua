@@ -28,13 +28,12 @@ end
 
 local function parseDescriptor(descriptor)
     local descriptorTable = {
-        -- descriptorString = descriptor
     }
     descriptor = descriptor:sub(2, descriptor:len()-1)
     descriptorTable.resource_type = string.sub(descriptor, 1, string.find(descriptor, "%s")-1)
     local startPoint = string.find(descriptor, "%s")
     while string.find(descriptor, "=", startPoint) do
-        local equalSign = string.find(descriptor, "=", startPoint)        
+        local equalSign = string.find(descriptor, "=", startPoint)
         local endPoint
 
         if string.sub(descriptor, equalSign+1, equalSign+1) == "\"" then
@@ -69,7 +68,7 @@ end
 
 function M.parseScene(path)
     local description
-    local scene = {}
+    local descriptors = {}
     
     local mode = "auto" -- "auto" or "param"
     local param 
@@ -81,21 +80,30 @@ function M.parseScene(path)
         if mode == "auto" then
             if isDescriptor(line) then
                 idx = idx + 1
-                scene[idx] = parseDescriptor(line)
+                descriptors[idx] = parseDescriptor(line)
             elseif isParamStart(line) then
                 if isMultilineParam(line) then
                     mode = "param"
                 end
-                param = parseParam(scene, idx, line)
+                param = parseParam(descriptors, idx, line)
             end
         elseif mode == "param" then
-            appendParam(scene, idx, param, "\n")
-            appendParam(scene, idx, param, line)
+            appendParam(descriptors, idx, param, "\n")
+            appendParam(descriptors, idx, param, line)
             if (string.sub(line, -1) == "\"") and (not (string.sub(line, -2) == "\\\"")) then
                 mode = "auto"
             end
         end
         lineNo = lineNo + 1
+    end
+
+    local scene = {}
+
+    for i, descriptor in pairs(descriptors) do
+        if not scene[descriptor.resource_type] then
+            scene[descriptor.resource_type] = {}
+        end
+        scene[descriptor.resource_type][#scene[descriptor.resource_type] + 1] = descriptor
     end
 
     return scene
